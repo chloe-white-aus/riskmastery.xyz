@@ -684,8 +684,11 @@
       .about-divider   { display: block; }
       .charts-grid     { grid-template-columns: 1fr; }
       .hero-stats      { grid-template-columns: 1fr; gap: 24px; }
-      .hero-stat       { border-right: none; padding: 0; border-bottom: 1px solid rgba(0,0,0,0.12); padding-bottom: 20px; }
-      .hero-stat:last-child { border-bottom: none; }
+      .hero-stat,
+      .hero-stat:first-child,
+      .hero-stat:nth-child(2),
+      .hero-stat:last-child { border-right: none; padding: 0 0 20px 0; border-bottom: 1px solid rgba(0,0,0,0.12); }
+      .hero-stat:last-child { border-bottom: none; padding-bottom: 0; }
       .nav-links       { display: none; }
       .nav-toggle      { display: flex; }
     }
@@ -694,7 +697,19 @@
       .container { padding: 0 24px; }
       :root { --section-pad: 64px; }
       .hero-inner { padding: 0 24px 60px; }
-      .press-track { padding: 0 24px 24px; }
+      /* Press section: enable native horizontal scroll on mobile */
+      .press-scroll-wrap {
+        overflow-x: auto;
+        overflow-y: hidden;
+        -webkit-overflow-scrolling: touch;
+      }
+      .press-track {
+        padding: 0 24px 24px;
+        transform: none !important;
+        transition: none !important;
+      }
+      .press-card { width: 80vw; max-width: 300px; flex-shrink: 0; }
+      .press-scrollbar-track { display: none; }
       .press-header { padding: 0 24px; }
     }
 
@@ -1190,17 +1205,26 @@
       applyX(currentX);
     };
 
-    window.addEventListener('load',   updateThumb);
-    window.addEventListener('resize', () => { applyX(0); updateThumb(); });
+    // On mobile (<= 600px) the press section uses native overflow-x scroll —
+    // reset any JS transform so the CSS can take over, and skip JS drag logic.
+    const isMobile = () => window.innerWidth <= 600;
 
-    // 1. Drag anywhere in the press section to scroll the reel
+    window.addEventListener('load', () => {
+      if (!isMobile()) updateThumb();
+      else { track.style.transform = ''; track.style.transition = ''; }
+    });
+    window.addEventListener('resize', () => {
+      if (!isMobile()) { applyX(0); updateThumb(); }
+      else { track.style.transform = ''; track.style.transition = ''; currentX = 0; }
+    });
+
+    // 1. Drag anywhere in the press section to scroll the reel (desktop only)
     let reelDragging = false, reelStartX = 0, reelStartCurrentX = 0;
 
-    // Apply grab cursor to the whole section, but only if it's not the scrollbar thumb
     pressSection.style.cursor = 'grab';
 
     pressSection.addEventListener('mousedown', e => {
-      if (e.target === thumb) return;
+      if (isMobile() || e.target === thumb) return;
       reelDragging      = true;
       reelStartX        = e.pageX;
       reelStartCurrentX = currentX;
@@ -1215,13 +1239,15 @@
       pressSection.style.cursor = 'grab';
     });
 
-    // Touch on entire press section
+    // Touch: only apply JS drag on non-mobile (mobile uses native scroll)
     let touchStartX = 0, touchStartCurrentX = 0;
     pressSection.addEventListener('touchstart', e => {
+      if (isMobile()) return;
       touchStartX        = e.touches[0].clientX;
       touchStartCurrentX = currentX;
     }, { passive: true });
     pressSection.addEventListener('touchmove', e => {
+      if (isMobile()) return;
       applyX(touchStartCurrentX + (e.touches[0].clientX - touchStartX));
     }, { passive: true });
 
